@@ -49,13 +49,16 @@ class _ImagePreviewState extends State<ImagePreview> {
             _labels.length == 0
                 ? Text("non labels")
                 : Expanded(
-                    child: ListView.builder(
-                      itemCount: _labels.length,
-                      itemBuilder: (context, index) {
-                        return Text(_labels[index]["label"] +
-                            ': ' +
-                            _labels[index]["confidence"]);
-                      },
+                    child: Padding(
+                      padding: const EdgeInsets.all(40.0),
+                      child: ListView.builder(
+                        itemCount: _labels.length,
+                        itemBuilder: (context, index) {
+                          return Text(_labels[index]["label"] +
+                              ': ' +
+                              _labels[index]["confidence"].toString());
+                        },
+                      ),
                     ),
                   ),
           ],
@@ -111,17 +114,19 @@ class _ImagePreviewState extends State<ImagePreview> {
 
   Future<dynamic> predictImage() async {
     await loadModel();
+    // imgLibで読み込み
+    imgLib.Image image =
+        imgLib.decodeImage(File(_image.path).readAsBytesSync());
     dynamic output = await Tflite.runModelOnBinary(
-        binary: imageToByteListFloat32(224, 224), threshold: 0.001);
+      binary: imageToByteListFloat32(image, 224, 224),
+      threshold: 0.001,
+    );
     setState(() {
       _labels = output;
     });
   }
 
-  Uint8List imageToByteListFloat32(int width, int height) {
-    // imgLibで読み込み
-    imgLib.Image image =
-        imgLib.decodeImage(File(_image.path).readAsBytesSync());
+  Uint8List imageToByteListFloat32(imgLib.Image image, int width, int height) {
     // リサイズと複製
     imgLib.Image resizeImage =
         imgLib.copyResize(image, width: width, height: height);
