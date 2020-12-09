@@ -30,6 +30,7 @@ dependencies:
   cupertino_icons: ^1.0.0
   image_picker:
   tflite:
+  image:
 
 dev_dependencies:
   flutter_test:
@@ -50,6 +51,8 @@ flutter:
   assets:
     - assets/mobilenet_v2_1.0_224_quant.tflite
     - assets/inception_v4.tflite
+    - assets/converted_model.tflite
+    - assets/ripe_labels.txt
     - assets/labels.txt
 
   # An image asset can refer to one or more resolution-specific "variants", see

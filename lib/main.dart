@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tflite/tflite.dart';
+import 'package:image/image.dart' as imgLib;
 
 Future<void> main() async {
   runApp(MyApp());
@@ -27,7 +29,7 @@ class ImagePreview extends StatefulWidget {
 
 class _ImagePreviewState extends State<ImagePreview> {
   File _image;
-  dynamic _labels;
+  dynamic _labels = [];
   final picker = ImagePicker();
 
   @override
@@ -44,7 +46,18 @@ class _ImagePreviewState extends State<ImagePreview> {
             Container(
               child: _image == null ? Text('画像を選択してください') : Image.file(_image),
             ),
-            Text(_labels[0]['label'] + _labels[0]['confidence'].toString()),
+            _labels.length == 0
+                ? Text("non labels")
+                : Expanded(
+                    child: ListView.builder(
+                      itemCount: _labels.length,
+                      itemBuilder: (context, index) {
+                        return Text(_labels[index]["label"] +
+                            ': ' +
+                            _labels[index]["confidence"]);
+                      },
+                    ),
+                  ),
           ],
         ),
       ),
@@ -91,17 +104,39 @@ class _ImagePreviewState extends State<ImagePreview> {
   Future<String> loadModel() async {
     Tflite.close();
     return Tflite.loadModel(
-      model: "assets/inception_v4.tflite",
-      labels: "assets/labels.txt",
+      model: "assets/converted_model.tflite",
+      labels: "assets/ripe_labels.txt",
     );
   }
 
   Future<dynamic> predictImage() async {
     await loadModel();
-    dynamic output =
-        await Tflite.runModelOnImage(path: _image.path, threshold: 0.001);
+    dynamic output = await Tflite.runModelOnBinary(
+        binary: imageToByteListFloat32(224, 224), threshold: 0.001);
     setState(() {
       _labels = output;
     });
+  }
+
+  Uint8List imageToByteListFloat32(int width, int height) {
+    // imgLibで読み込み
+    imgLib.Image image =
+        imgLib.decodeImage(File(_image.path).readAsBytesSync());
+    // リサイズと複製
+    imgLib.Image resizeImage =
+        imgLib.copyResize(image, width: width, height: height);
+    // Float32のバイトに変換
+    var convertedBytes = Float32List(1 * width * height * 3);
+    var buffer = Float32List.view(convertedBytes.buffer);
+    int pixelIndex = 0;
+    for (var i = 0; i < width; i++) {
+      for (var j = 0; j < height; j++) {
+        var pixel = resizeImage.getPixel(i, j);
+        buffer[pixelIndex++] = (imgLib.getRed(pixel)) / 255;
+        buffer[pixelIndex++] = (imgLib.getGreen(pixel)) / 255;
+        buffer[pixelIndex++] = (imgLib.getBlue(pixel)) / 255;
+      }
+    }
+    return convertedBytes.buffer.asUint8List();
   }
 }
